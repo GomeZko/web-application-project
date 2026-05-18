@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Workflow Manager</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f0f2f5; color: #222; }
+
+    header {
+      background: #1e293b;
+      color: white;
+      padding: 16px 24px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    nav {
+      display: flex;
+      gap: 8px;
+      padding: 12px 24px;
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    nav button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #e2e8f0;
+      font-size: 14px;
+    }
+
+    nav button.active { background: #3b82f6; color: white; }
+
+    .page { display: none; padding: 24px; }
+    .page.active { display: block; }
+
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    h2 { margin-bottom: 16px; font-size: 18px; }
+    h3 { margin-bottom: 12px; font-size: 15px; color: #475569; }
+
+    .form-group { margin-bottom: 12px; }
+    label { display: block; font-size: 13px; margin-bottom: 4px; color: #64748b; }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    textarea { resize: vertical; height: 70px; }
+
+    button.btn {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      background: #3b82f6;
+      color: white;
+    }
+
+    button.btn:hover { background: #2563eb; }
+    button.btn.danger { background: #ef4444; }
+    button.btn.danger:hover { background: #dc2626; }
+    button.btn.secondary { background: #64748b; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .badge.TODO { background: #e2e8f0; color: #475569; }
+    .badge.IN_PROGRESS { background: #fef9c3; color: #854d0e; }
+    .badge.DONE { background: #dcfce7; color: #166534; }
+    .badge.LOW { background: #e0f2fe; color: #0369a1; }
+    .badge.MEDIUM { background: #fef9c3; color: #854d0e; }
+    .badge.HIGH { background: #fee2e2; color: #991b1b; }
+
+    .task-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    .task-card {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border-left: 4px solid #3b82f6;
+    }
+
+    .task-card.DONE { border-left-color: #22c55e; }
+    .task-card.IN_PROGRESS { border-left-color: #f59e0b; }
+    .task-card.TODO { border-left-color: #94a3b8; }
+
+    .task-title { font-weight: bold; margin-bottom: 6px; }
+    .task-meta { font-size: 13px; color: #64748b; margin-bottom: 8px; }
+    .task-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .task-actions select, .task-actions input { width: auto; flex: 1; }
+
+    .user-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .user-item {
+      background: white;
+      border-radius: 8px;
+      padding: 14px 18px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #3b82f6;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .user-info { flex: 1; }
+    .user-name { font-weight: bold; }
+    .user-email { font-size: 13px; color: #64748b; }
+
+    .alert {
+      padding: 10px 14px;
+      border-radius: 6px;
+      margin-bottom: 14px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .alert.success { background: #dcfce7; color: #166534; display: block; }
+    .alert.error { background: #fee2e2; color: #991b1b; display: block; }
+
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .filter-bar select, .filter-bar input { width: auto; }
+  </style>
+</head>
+<body>
+
+<header>Workflow Manager</header>
+
+<nav>
+  <button class="active" onclick="showPage('tasks')">Tasks</button>
+  <button onclick="showPage('users')">Users</button>
+</nav>
+
+<!-- TASKS PAGE -->
+<div id="page-tasks" class="page active">
+  <div class="card">
+    <h2>Create new task</h2>
+    <div id="task-alert" class="alert"></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <div class="form-group">
+        <label>Name *</label>
+        <input id="task-title" type="text" placeholder="Task title" />
+      </div>
+      <div class="form-group">
+        <label>Priority *</label>
+        <select id="task-priority">
+          <option value="LOW">LOW</option>
+          <option value="MEDIUM" selected>MEDIUM</option>
+          <option value="HIGH">HIGH</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column: span 2;">
+        <label>Description</label>
+        <textarea id="task-description" placeholder="Description (optional)"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Deadline</label>
+        <input id="task-due" type="text" placeholder="YYYY-MM-DD" />
+      </div>
+    </div>
+    <button class="btn" onclick="createTask()">Create task</button>
+  </div>
+
+  <div class="card">
+    <h2>Task list</h2>
+    <div class="filter-bar">
+      <select id="filter-status" onchange="loadTasks()">
+        <option value="">All statuses</option>
+        <option value="TODO">TODO</option>
+        <option value="IN_PROGRESS">IN_PROGRESS</option>
+        <option value="DONE">DONE</option>
+      </select>
+      <button class="btn secondary" onclick="loadTasks()">Update</button>
+    </div>
+    <div id="task-grid" class="task-grid">
+      <p style="color:#94a3b8;">Loading...</p>
+    </div>
+  </div>
+</div>
+
+<!-- USERS PAGE -->
+<div id="page-users" class="page">
+  <div class="card">
+    <h2>Add user</h2>
+    <div id="user-alert" class="alert"></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+      <div class="form-group">
+        <label>Name *</label>
+        <input id="user-name" type="text" placeholder="User name" />
+      </div>
+      <div class="form-group">
+        <label>Email *</label>
+        <input id="user-email" type="email" placeholder="email@example.com" />
+      </div>
+      <div class="form-group">
+        <label>Role *</label>
+        <select id="user-role">
+          <option value="DEVELOPER">DEVELOPER</option>
+          <option value="PROJECT_MANAGER">PROJECT_MANAGER</option>
+          <option value="TEAM_LEAD">TEAM_LEAD</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn" onclick="createUser()">Add user</button>
+  </div>
+
+  <div class="card">
+    <h2>Users</h2>
+    <div id="user-list" class="user-list">
+      <p style="color:#94a3b8;">Loading...</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = 'http://localhost:8080/api';
+
+  // --- Navigation ---
+  function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    event.target.classList.add('active');
+    if (name === 'tasks') loadTasks();
+    if (name === 'users') loadUsers();
+  }
+
+  function showAlert(id, message, type) {
+    const el = document.getElementById(id);
+    el.textContent = message;
+    el.className = 'alert ' + type;
+    setTimeout(() => el.className = 'alert', 3000);
+  }
+
+  // --- TASKS ---
+  async function loadTasks() {
+    const status = document.getElementById('filter-status').value;
+    let url = `${API}/tasks`;
+    if (status) url += `?status=${status}`;
+
+    try {
+      const res = await fetch(url);
+      const tasks = await res.json();
+      renderTasks(tasks);
+    } catch (e) {
+      document.getElementById('task-grid').innerHTML = '<p style="color:red;">Error during loading tasks</p>';
+    }
+  }
+
+  function renderTasks(tasks) {
+    const grid = document.getElementById('task-grid');
+    if (tasks.length === 0) {
+      grid.innerHTML = '<p style="color:#94a3b8;">No tasks found</p>';
+      return;
+    }
+    grid.innerHTML = tasks.map(t => `
+      <div class="task-card ${t.status}" id="task-card-${t.id}">
+        <div class="task-title">${escHtml(t.title)}</div>
+        <div class="task-meta">
+          <span class="badge ${t.priority}">${t.priority}</span>
+          <span class="badge ${t.status}" style="margin-left:4px;">${t.status}</span>
+          ${t.dueDate ? `<span style="margin-left:6px;">due ${t.dueDate}</span>` : ''}
+        </div>
+        ${t.description ? `<div style="font-size:13px;color:#475569;margin-bottom:6px;">${escHtml(t.description)}</div>` : ''}
+        ${t.assignedUser ? `<div style="font-size:13px;color:#3b82f6;">Assigned: ${escHtml(t.assignedUser.name)}</div>` : '<div style="font-size:13px;color:#94a3b8;">Not assigned</div>'}
+        <div class="task-actions">
+          <select id="status-${t.id}">
+            <option value="TODO" ${t.status==='TODO'?'selected':''}>TODO</option>
+            <option value="IN_PROGRESS" ${t.status==='IN_PROGRESS'?'selected':''}>IN_PROGRESS</option>
+            <option value="DONE" ${t.status==='DONE'?'selected':''}>DONE</option>
+          </select>
+          <button class="btn secondary" style="padding:6px 10px;" onclick="updateStatus(${t.id})">Status</button>
+        </div>
+        <div class="task-actions">
+          <input id="assign-${t.id}" type="number" placeholder="User ID" min="1" />
+          <button class="btn secondary" style="padding:6px 10px;" onclick="assignTask(${t.id})">Set</button>
+          <button class="btn danger" style="padding:6px 10px;" onclick="deleteTask(${t.id})">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function createTask() {
+    const title = document.getElementById('task-title').value.trim();
+    const priority = document.getElementById('task-priority').value;
+    const description = document.getElementById('task-description').value.trim();
+    const dueDate = document.getElementById('task-due').value;
+
+    if (!title) return showAlert('task-alert', 'Enter task name', 'error');
+
+    const body = { title, priority };
+    if (description) body.description = description;
+    if (dueDate) body.dueDate = dueDate;
+
+    try {
+      const res = await fetch(`${API}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw await res.json();
+      document.getElementById('task-title').value = '';
+      document.getElementById('task-description').value = '';
+      document.getElementById('task-due').value = '';
+      showAlert('task-alert', 'Task created', 'success');
+      loadTasks();
+    } catch (e) {
+      showAlert('task-alert', e.message || 'Error during creating a task', 'error');
+    }
+  }
+
+  async function updateStatus(id) {
+    const status = document.getElementById(`status-${id}`).value;
+    try {
+      const res = await fetch(`${API}/tasks/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      if (!res.ok) throw await res.json();
+      loadTasks();
+    } catch (e) {
+      alert('Error during updating status');
+    }
+  }
+
+  async function assignTask(id) {
+    const userId = document.getElementById(`assign-${id}`).value;
+    if (!userId) return alert('Enter user ID:');
+    try {
+      const res = await fetch(`${API}/tasks/${id}/assign`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: Number(userId) })
+      });
+      if (!res.ok) throw await res.json();
+      loadTasks();
+    } catch (e) {
+      alert('Error during setting user');
+    }
+  }
+
+  async function deleteTask(id) {
+    if (!confirm('Delete task?')) return;
+    try {
+      await fetch(`${API}/tasks/${id}`, { method: 'DELETE' });
+      loadTasks();
+    } catch (e) {
+      alert('Error while deleting');
+    }
+  }
+
+  // --- USERS ---
+  async function loadUsers() {
+    try {
+      const res = await fetch(`${API}/users`);
+      const users = await res.json();
+      renderUsers(users);
+    } catch (e) {
+      document.getElementById('user-list').innerHTML = '<p style="color:red;">Error during loading users</p>';
+    }
+  }
+
+  function renderUsers(users) {
+    const list = document.getElementById('user-list');
+    if (users.length === 0) {
+      list.innerHTML = '<p style="color:#94a3b8;">Users not found</p>';
+      return;
+    }
+    list.innerHTML = users.map(u => `
+      <div class="user-item">
+        <div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div>
+        <div class="user-info">
+          <div class="user-name">${escHtml(u.name)} <span style="font-size:12px;color:#94a3b8;">#${u.id}</span></div>
+          <div class="user-email">${escHtml(u.email)}</div>
+        </div>
+        <span class="badge MEDIUM">${u.role}</span>
+      </div>
+    `).join('');
+  }
+
+  async function createUser() {
+    const name = document.getElementById('user-name').value.trim();
+    const email = document.getElementById('user-email').value.trim();
+    const role = document.getElementById('user-role').value;
+
+    if (!name) return showAlert('user-alert', 'Enter name', 'error');
+    if (!email) return showAlert('user-alert', 'Enter email', 'error');
+
+    try {
+      const res = await fetch(`${API}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, role })
+      });
+      if (!res.ok) throw await res.json();
+      document.getElementById('user-name').value = '';
+      document.getElementById('user-email').value = '';
+      showAlert('user-alert', 'User added', 'success');
+      loadUsers();
+    } catch (e) {
+      showAlert('user-alert', e.message || 'Error adding user', 'error');
+    }
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Init
+  loadTasks();
+</script>
+</body>
+</html>
