@@ -54,7 +54,7 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- H2 (для локальной разработки без PostgreSQL) -->
+        <!-- H2 -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
